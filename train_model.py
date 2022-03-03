@@ -152,16 +152,24 @@ history = model.fit(
       verbose=2)
 # %%
 import matplotlib.pyplot as plt
-nrows = 3
-ncols = 3
-fig = plt.gcf()
-fig.set_size_inches(ncols * 4, nrows * 4)
+# nrows = 3
+# ncols = 3
+# fig = plt.gcf()
+# fig.set_size_inches(ncols * 4, nrows * 4)
 
-for i in range(0, 4):
-    sp = plt.subplot(nrows, ncols, i+ 1)
-    item = train_generator.__getitem__(i)
-    var = item[0][0]
-    plt.imshow(var)
-    print(item[1][0][0])
+# for i in range(0, 4):
+#     sp = plt.subplot(nrows, ncols, i+ 1)
+#     item = train_generator.__getitem__(i)
+#     var = item[0][0]
+#     plt.imshow(var)
+#     print(item[1][0][0])
 
+# %%
+#prediction
+
+var = validation_generator.__getitem__(12)
+var = var[0][0]
+plt.imshow(var)
+var = np.expand_dims(var, axis=0)
+model.predict(var, verbose=1, batch_size = 1)
 # %%

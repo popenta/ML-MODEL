@@ -33,9 +33,6 @@ def xml_to_csv(path):
 
     return xml_df
 
-#train_df = xml_to_csv("imagini\\train")
-
-#print(train_df)
 
 class CustomDataGen(tf.keras.utils.Sequence):
     
@@ -69,8 +66,8 @@ class CustomDataGen(tf.keras.utils.Sequence):
         return image_arr/255.
     
     def __get_output(self, label, num_classes):
-        print(f'label is {label}')
-        return tf.keras.utils.to_categorical(label, num_classes=num_classes)
+        # print(f'label is {label}')
+        return label #tf.keras.utils.to_categorical(label, num_classes=num_classes)
     
     def __get_data(self, batches):
         # Generates data containing batch_size samples
