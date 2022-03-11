@@ -1,16 +1,15 @@
 # %%
+from itertools import count
 import os
 
-from tensorflow.keras import layers
-from tensorflow.keras import Model
+from keras import layers
+from keras import Model
 # %%
 import tensorflow as tf
-#tf.compat.v1.disable_eager_execution()
-#experimental_run_tf_function=False
-#tf.compat.v1.enable_eager_execution()
-#tf.config.run_functions_eagerly(True)
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-from tensorflow.keras.applications.inception_v3 import InceptionV3
+# %%
+from keras.applications.inception_v3 import InceptionV3
 
 local_weights_file = 'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5'
 pre_trained_model = InceptionV3(
@@ -42,23 +41,15 @@ x = layers.Dense(1, activation='sigmoid')(x)
 # Configure and compile the model
 model = Model(pre_trained_model.input, x)
 
-# model = keras.models.Sequential([
-#   keras.layers.Flatten(),
-#   keras.layers.Dense(128, activation='relu'),
-#   keras.layers.Dropout(0.2),
-#   keras.layers.Dense(2, activation='sigmoid')
-# ])
-# model.add(keras.layers.Flatten())
-
 model.compile(loss='binary_crossentropy',
-              optimizer=RMSprop(lr=0.0001),
+              optimizer=RMSprop(learning_rate=0.0001),
               metrics=['acc'],
               run_eagerly=True)
 
 #model.summary()
 # %%
 
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator
 from custom_generator import *
 
 # Define our example directories and files
@@ -80,7 +71,6 @@ for index, row in train_df.iterrows():
 
 train_df["coordinates"] = col
 train_df['class'] = pd.factorize(train_df['class'])[0]
-#train_df['class'] = np.asarray(train_df['class']).astype('float32').reshape((-1,1))
 
 col_1 = []
 for index, row in val_df.iterrows():
@@ -92,17 +82,50 @@ for index, row in val_df.iterrows():
 
 val_df["coordinates"] = col_1
 val_df['class'] = pd.factorize(val_df['class'])[0]
-#val_df['class'] = np.asarray(val_df['class']).astype('float32').reshape((-1,1))
 
-batch_size = 1
+batch_size = 4
 
-os.chdir(train_dir)
+train_datagen = ImageDataGenerator(
+    rotation_range=40,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True)
+
+#os.chdir(train_dir)
 train_generator = CustomDataGen(train_df,
                                 X_col = {'path': 'filename', 'bbox' : 'coordinates'},
                                 y_col = {'name': 'class'},
                                 batch_size = batch_size)
 
 
+data = []
+labels = np.empty([])
+
+for img in train_generator:
+    ct = 0
+    #print(img[1]) #asta e lista de labeluri
+    for value in img[1]:
+        if value == 0:
+            arr = np.zeros(10)#trebe 40 cred
+        else:
+            arr = np.ones(10)
+        labels = np.concatenate((labels, arr), axis=None)
+
+    img = img[0][0]
+    img = img.reshape((1,) + img.shape)
+    for pair in train_datagen.flow(img, batch_size = batch_size, shuffle=False):
+        ct += 1
+        data.append(pair[0])
+        if ct == 40:
+            break
+
+labels = np.delete(labels, 0)
+
+# print(data[0].shape)
+# print(len(data))
+training_data = np.asarray(data, dtype='float32')
 
 os.chdir('C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL\\imagini\\validation\\')
 validation_generator = CustomDataGen(val_df,
@@ -112,63 +135,42 @@ validation_generator = CustomDataGen(val_df,
 
 os.chdir("C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL")
 
-"""
-# Add our data-augmentation parameters to ImageDataGenerator
-train_datagen = ImageDataGenerator(
-    rescale=1./255,
-    rotation_range=40,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True)
-
-# Note that the validation data should not be augmented!
-val_datagen = ImageDataGenerator(rescale=1./255)
-
-train_generator = train_datagen.flow_from_directory(
-        train_dir, # This is the source directory for training images
-        target_size=(300, 300),  # All images will be resized to 150x150
-        batch_size=20,
-        # Since we use binary_crossentropy loss, we need binary labels
-        class_mode='binary')
-
-# Flow validation images in batches of 20 using val_datagen generator
-validation_generator = val_datagen.flow_from_directory(
-        validation_dir,
-        target_size=(300, 300),
-        batch_size=20,
-        class_mode='binary')
-"""
+# print(training_data.shape)
+# print(training_data[0].shape)
+# print(labels.shape)
 
 # %%
 
 history = model.fit(
-      train_generator,
-      steps_per_epoch=100,
-      epochs=2,
+      training_data,
+      labels,
+      steps_per_epoch=40,
+      epochs=10,
       validation_data=validation_generator,
-      validation_steps=50,
+      validation_steps=25,
       verbose=2)
 # %%
+#generator
 import matplotlib.pyplot as plt
-# nrows = 3
-# ncols = 3
-# fig = plt.gcf()
-# fig.set_size_inches(ncols * 4, nrows * 4)
+nrows = 3
+ncols = 3
+fig = plt.gcf()
+fig.set_size_inches(ncols * 4, nrows * 4)
 
-# for i in range(0, 4):
-#     sp = plt.subplot(nrows, ncols, i+ 1)
-#     item = train_generator.__getitem__(i)
-#     var = item[0][0]
-#     plt.imshow(var)
-#     print(item[1][0][0])
+for i in range(0, 4):
+    sp = plt.subplot(nrows, ncols, i+ 1)
+    item = train_generator.__getitem__(i)
+    var = item[0][0]
+    plt.imshow(var)
+    #print(item[1][0][0])
 
 # %%
 #prediction
+import matplotlib.pyplot as plt
 
-var = validation_generator.__getitem__(12)
+var = validation_generator.__getitem__(0)
 var = var[0][0]
+print(var.shape)
 plt.imshow(var)
 var = np.expand_dims(var, axis=0)
 model.predict(var, verbose=1, batch_size = 1)

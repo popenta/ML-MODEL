@@ -1,5 +1,6 @@
 import imp
 import os
+from tkinter import Image
 import pandas as pd
 import xml.etree.ElementTree as ET
 import glob
@@ -80,7 +81,7 @@ class CustomDataGen(tf.keras.utils.Sequence):
         X_batch = np.asarray([self.__get_input(x, y, self.input_size) for x, y in zip(path_batch, bbox_batch)])
 
         y0_batch = np.asarray([self.__get_output(y, self.n_class) for y in name_batch])
-
+        
         return X_batch, y0_batch
     
     def __getitem__(self, index):
