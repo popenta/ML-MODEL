@@ -32,7 +32,8 @@ import keras
 # Flatten the output layer to 1 dimension
 x = layers.Flatten()(last_output)
 # Add a fully connected layer with 1,024 hidden units and ReLU activation
-x = layers.Dense(1024, activation='relu')(x)
+x = layers.Dense(256, activation='relu')(x)
+x = layers.Dense(256, activation='relu')(x)
 # Add a dropout rate of 0.2
 x = layers.Dropout(0.2)(x)
 # Add a final sigmoid layer for classification
@@ -43,7 +44,7 @@ model = Model(pre_trained_model.input, x)
 
 model.compile(loss='binary_crossentropy',
               optimizer=RMSprop(learning_rate=0.0001),
-              metrics=['acc'],
+              metrics=['accuracy'],
               run_eagerly=True)
 
 #model.summary()
@@ -57,98 +58,66 @@ base_dir = 'imagini'
 train_dir = os.path.join(base_dir, 'train')
 validation_dir = os.path.join(base_dir, 'validation')
 
-train_df = xml_to_csv(train_dir)
-val_df = xml_to_csv(validation_dir)
+"""
+# train_df = xml_to_csv(train_dir)
+# val_df = xml_to_csv(validation_dir)
 
-col=[]
-for index, row in train_df.iterrows():
-    val = {'xmin': train_df.at[index,'xmin'],
-            'ymin': train_df.at[index,'ymin'],
-            'xmax': train_df.at[index,'xmax'],
-            'ymax': train_df.at[index,'ymax']}
+# col=[]
+# for index, row in train_df.iterrows():
+#     val = {'xmin': train_df.at[index,'xmin'],
+#             'ymin': train_df.at[index,'ymin'],
+#             'xmax': train_df.at[index,'xmax'],
+#             'ymax': train_df.at[index,'ymax']}
 
-    col.append(val)
+#     col.append(val)
 
-train_df["coordinates"] = col
-train_df['class'] = pd.factorize(train_df['class'])[0]
+# train_df["coordinates"] = col
+# train_df['class'] = pd.factorize(train_df['class'])[0]
 
-col_1 = []
-for index, row in val_df.iterrows():
-    val = {'xmin':val_df.at[index,'xmin'],
-            'ymin':val_df.at[index,'ymin'],
-            'xmax':val_df.at[index,'xmax'],
-            'ymax':val_df.at[index,'ymax']}
-    col_1.append(val)
+# col_1 = []
+# for index, row in val_df.iterrows():
+#     val = {'xmin':val_df.at[index,'xmin'],
+#             'ymin':val_df.at[index,'ymin'],
+#             'xmax':val_df.at[index,'xmax'],
+#             'ymax':val_df.at[index,'ymax']}
+#     col_1.append(val)
 
-val_df["coordinates"] = col_1
-val_df['class'] = pd.factorize(val_df['class'])[0]
+# val_df["coordinates"] = col_1
+# val_df['class'] = pd.factorize(val_df['class'])[0]
+"""
 
 batch_size = 4
 
-train_datagen = ImageDataGenerator(
+datagen = ImageDataGenerator(
     rotation_range=40,
     width_shift_range=0.2,
     height_shift_range=0.2,
     shear_range=0.2,
     zoom_range=0.2,
-    horizontal_flip=True)
-
-#os.chdir(train_dir)
-train_generator = CustomDataGen(train_df,
-                                X_col = {'path': 'filename', 'bbox' : 'coordinates'},
-                                y_col = {'name': 'class'},
-                                batch_size = batch_size)
+    horizontal_flip=True,
+    validation_split=0.1)
 
 
-data = []
-labels = np.empty([])
+X_train, Y_train = xml_to_array(train_dir)
 
-for img in train_generator:
-    ct = 0
-    #print(img[1]) #asta e lista de labeluri
-    for value in img[1]:
-        if value == 0:
-            arr = np.zeros(10)#trebe 40 cred
-        else:
-            arr = np.ones(10)
-        labels = np.concatenate((labels, arr), axis=None)
+# print(X_train.shape)
+# print(X_train[0].shape)
+# print(Y_train.shape)
+# print(Y_train[0])
 
-    img = img[0][0]
-    img = img.reshape((1,) + img.shape)
-    for pair in train_datagen.flow(img, batch_size = batch_size, shuffle=False):
-        ct += 1
-        data.append(pair[0])
-        if ct == 40:
-            break
+#os.chdir("C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL")
 
-labels = np.delete(labels, 0)
-
-# print(data[0].shape)
-# print(len(data))
-training_data = np.asarray(data, dtype='float32')
-
-os.chdir('C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL\\imagini\\validation\\')
-validation_generator = CustomDataGen(val_df,
-                                X_col = {'path': 'filename', 'bbox' : 'coordinates'},
-                                y_col = {'name': 'class'},
-                                batch_size = batch_size)
-
-os.chdir("C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL")
-
-# print(training_data.shape)
-# print(training_data[0].shape)
-# print(labels.shape)
 
 # %%
 
-history = model.fit(
-      training_data,
-      labels,
-      steps_per_epoch=40,
-      epochs=10,
-      validation_data=validation_generator,
-      validation_steps=25,
-      verbose=2)
+model.fit(datagen.flow(X_train, Y_train, batch_size=32,
+         subset='training'),
+         validation_data=datagen.flow(X_train, Y_train,
+         batch_size=4, subset='validation'),
+         steps_per_epoch=len(X_train) // 32, 
+         epochs=15)
+
+
 # %%
 #generator
 import matplotlib.pyplot as plt
@@ -159,7 +128,7 @@ fig.set_size_inches(ncols * 4, nrows * 4)
 
 for i in range(0, 4):
     sp = plt.subplot(nrows, ncols, i+ 1)
-    item = train_generator.__getitem__(i)
+    item = training_data.__getitem__(i)
     var = item[0][0]
     plt.imshow(var)
     #print(item[1][0][0])
@@ -174,4 +143,17 @@ print(var.shape)
 plt.imshow(var)
 var = np.expand_dims(var, axis=0)
 model.predict(var, verbose=1, batch_size = 1)
+# %%
+import matplotlib.pyplot as plt
+
+x_test, y_test = xml_to_array(validation_dir)
+#print(x_test[0].shape)
+
+image = x_test[0]/255.
+print("label era {}".format(y_test[0]))
+plt.imshow(image)
+plt.show()
+image = np.expand_dims(image, axis=0)
+model.predict(image, verbose=1, batch_size = 1)
+
 # %%

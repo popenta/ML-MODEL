@@ -7,6 +7,8 @@ import glob
 import numpy as np
 import tensorflow as tf
 
+np.set_printoptions(suppress=True)
+
 def xml_to_csv(path):
 
     xml_list = []
@@ -33,6 +35,43 @@ def xml_to_csv(path):
     xml_df = pd.DataFrame(xml_list, columns=column_name)
 
     return xml_df
+
+#xml to array
+#impart array in train si test
+
+def xml_to_array(path):
+    X_array = []
+    Y_array = []
+
+    for image in glob.glob(path + '/*.jpg'):
+        xml_file = image.replace(".jpg", ".xml")
+        
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        for member in root.findall('object'):
+            bndbox = member.find('bndbox')
+            label = member.find('name').text
+            xmin = int(bndbox.find('xmin').text)
+            ymin = int(bndbox.find('ymin').text)
+            xmax = int(bndbox.find('xmax').text)
+            ymax = int(bndbox.find('ymax').text)
+
+            img = tf.keras.preprocessing.image.load_img(image)
+            img_arr = tf.keras.preprocessing.image.img_to_array(img)
+
+            img_arr = img_arr[ymin:ymax, xmin:xmax]
+            img_arr = tf.image.resize(img_arr,(150, 150)).numpy()
+
+            X_array.append(img_arr)
+            label = 0 if label=='available' else 1
+            Y_array.append(label)
+    
+    X_array = np.asarray(X_array, dtype='float32')
+    Y_array = np.asarray(Y_array)
+
+    return X_array, Y_array
+
+
 
 
 class CustomDataGen(tf.keras.utils.Sequence):
