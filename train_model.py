@@ -1,11 +1,10 @@
 # %%
-from itertools import count
 import os
-
-from keras import layers
-from keras import Model
+from black import Mode
+from keras import layers, Model
 # %%
 import tensorflow as tf
+
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 # %%
@@ -33,7 +32,7 @@ import keras
 x = layers.Flatten()(last_output)
 # Add a fully connected layer with 1,024 hidden units and ReLU activation
 x = layers.Dense(256, activation='relu')(x)
-x = layers.Dense(256, activation='relu')(x)
+x = layers.Dense(128, activation='relu')(x)
 # Add a dropout rate of 0.2
 x = layers.Dropout(0.2)(x)
 # Add a final sigmoid layer for classification
@@ -53,42 +52,14 @@ model.compile(loss='binary_crossentropy',
 from keras.preprocessing.image import ImageDataGenerator
 from custom_generator import *
 
-# Define our example directories and files
 base_dir = 'imagini'
 train_dir = os.path.join(base_dir, 'train')
 validation_dir = os.path.join(base_dir, 'validation')
 
-"""
-# train_df = xml_to_csv(train_dir)
-# val_df = xml_to_csv(validation_dir)
-
-# col=[]
-# for index, row in train_df.iterrows():
-#     val = {'xmin': train_df.at[index,'xmin'],
-#             'ymin': train_df.at[index,'ymin'],
-#             'xmax': train_df.at[index,'xmax'],
-#             'ymax': train_df.at[index,'ymax']}
-
-#     col.append(val)
-
-# train_df["coordinates"] = col
-# train_df['class'] = pd.factorize(train_df['class'])[0]
-
-# col_1 = []
-# for index, row in val_df.iterrows():
-#     val = {'xmin':val_df.at[index,'xmin'],
-#             'ymin':val_df.at[index,'ymin'],
-#             'xmax':val_df.at[index,'xmax'],
-#             'ymax':val_df.at[index,'ymax']}
-#     col_1.append(val)
-
-# val_df["coordinates"] = col_1
-# val_df['class'] = pd.factorize(val_df['class'])[0]
-"""
-
 batch_size = 4
 
 datagen = ImageDataGenerator(
+    rescale=1/255.,
     rotation_range=40,
     width_shift_range=0.2,
     height_shift_range=0.2,
@@ -97,16 +68,7 @@ datagen = ImageDataGenerator(
     horizontal_flip=True,
     validation_split=0.1)
 
-
 X_train, Y_train = xml_to_array(train_dir)
-
-# print(X_train.shape)
-# print(X_train[0].shape)
-# print(Y_train.shape)
-# print(Y_train[0])
-
-#os.chdir("C:\\Users\\Alex\\Desktop\\LICENTa\\ML MODEL")
-
 
 # %%
 
@@ -115,45 +77,47 @@ model.fit(datagen.flow(X_train, Y_train, batch_size=32,
          validation_data=datagen.flow(X_train, Y_train,
          batch_size=4, subset='validation'),
          steps_per_epoch=len(X_train) // 32, 
-         epochs=15)
+         epochs=15,
+         shuffle=True)
 
 
 # %%
-#generator
-import matplotlib.pyplot as plt
-nrows = 3
-ncols = 3
-fig = plt.gcf()
-fig.set_size_inches(ncols * 4, nrows * 4)
-
-for i in range(0, 4):
-    sp = plt.subplot(nrows, ncols, i+ 1)
-    item = training_data.__getitem__(i)
-    var = item[0][0]
-    plt.imshow(var)
-    #print(item[1][0][0])
-
-# %%
-#prediction
-import matplotlib.pyplot as plt
-
-var = validation_generator.__getitem__(0)
-var = var[0][0]
-print(var.shape)
-plt.imshow(var)
-var = np.expand_dims(var, axis=0)
-model.predict(var, verbose=1, batch_size = 1)
-# %%
+#predictie
 import matplotlib.pyplot as plt
 
 x_test, y_test = xml_to_array(validation_dir)
-#print(x_test[0].shape)
 
-image = x_test[0]/255.
-print("label era {}".format(y_test[0]))
+image = x_test[4]/255.
+print("label era {}".format(y_test[4]))
 plt.imshow(image)
 plt.show()
 image = np.expand_dims(image, axis=0)
 model.predict(image, verbose=1, batch_size = 1)
 
+# %%
+#salvare model
+model.save("model_v1_1.h5")
+# %%
+#incarcare model
+import keras
+
+trained_model = Model()
+trained_model = keras.models.load_model("model_v1_1.h5")
+
+# %%
+import matplotlib.pyplot as plt
+from custom_generator import xml_to_array
+import numpy as np
+
+base_dir = 'imagini'
+validation_dir = os.path.join(base_dir, 'validation')
+
+x_test, y_test = xml_to_array(validation_dir)
+
+image = x_test[3]/255.
+print("label era {}".format(y_test[3]))
+plt.imshow(image)
+plt.show()
+image = np.expand_dims(image, axis=0)
+trained_model.predict(image, verbose=1, batch_size = 1)
 # %%
